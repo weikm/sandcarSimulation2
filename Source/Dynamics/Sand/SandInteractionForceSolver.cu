@@ -3,7 +3,6 @@
 #include <thrust/execution_policy.h>
 #include <thrust/reduce.h>
 #include <cmath>
-
 #include "Core/Utility/CTimer.h"
 #include "Core/Utility/CudaRand.h"
 
@@ -11,7 +10,6 @@ namespace PhysIKA {
 
 void SandInteractionForceSolver::addSDF(DistanceField3D<DataType3f>& sdf, int rigidid)
 {
-
     float* tmpa = new float[10];
     memset(tmpa, 0, sizeof(float) * 10);
     DeviceArray<double> devTmpa;
@@ -67,15 +65,6 @@ __global__ void SandIFS_updateSinkInfo(//更新下沉信息，这应该是耦合第一步
 
         if (dis <= 0)//接触了——
         {
-
-            //Vector3d tmpp = positions[tid];
-            //tmpp[1] = curh;
-            //tmpp -= bodyi.pose.position;
-            //double tmpnorm = tmpp.norm();
-            //printf("detected: %lf,  %lf; %lf %lf %lf;  %lf %lf %lf\n", dis, tmpnorm,
-            //	bodyi.pose.position[0], bodyi.pose.position[1], bodyi.pose.position[2],
-            //	positions[tid][0], curh, positions[tid][2]
-            //	);
 
             if (htop < curh)
             {
@@ -308,15 +297,15 @@ void SandInteractionForceSolver::computeSingleBuoyance(int i, Real dt)
         //       debAngv[1],
         //       debAngv[2]);
 
-        printf("Buoy F: %lf %lf %lf, Buoy T: %lf %lf %lf, Abuo: %lf , Alpha: %lf\n",
-               buoF[0],
-               buoF[1],
-               buoF[2],
-               buoT[0],
-               buoT[1],
-               buoT[2],
-               m_Abuo,
-               alpha);
+        //printf("Buoy F: %lf %lf %lf, Buoy T: %lf %lf %lf, Abuo: %lf , Alpha: %lf\n",
+        //       buoF[0],
+        //       buoF[1],
+        //       buoF[2],
+        //       buoT[0],
+        //       buoT[1],
+        //       buoT[2],
+        //       m_Abuo,
+        //       alpha);
     }
 
     (m_hostBody + i)->linVelocity = m_prevBody[i].linVelocity;
@@ -478,7 +467,7 @@ __global__ void SandIFS_DragForceVel(//算拖拽阻力
 		//找到问题了：小球轨迹不正常拐弯，是因拖拽力方向导致，去掉拖拽力之后就不拐了。所以问题在于这个拖拽力是在哪调用的！这里只是个值，不是向量。
 
         relvDf[botid] = dragF[botid].dot(body[bodyid].linVelocity - velArr[tid])  + dragT[botid].dot(body[bodyid].angVelocity);
-    //有了这行，就自传了。
+    //有了这行，就自转了。
 	}
 }
 
@@ -566,7 +555,7 @@ void SandInteractionForceSolver::computeSingleDragForce(int i, Real dt)
 	dragT[1] = dragT[1] > 2000 ? 2000.0 : dragT[1];
 	dragT[2] = dragT[2] > 2000 ? 2000.0 : dragT[2];
 
-    if (true)
+    if (false)
     {
         printf("AFT:   Drag F: %lf %lf %lf, Drag T: %lf %lf %lf, Alpha: %lf \n",
                dragF[0],
@@ -1138,12 +1127,9 @@ void SandInteractionForceSolver::updateBodyAverageVel(Real dt)
         m_prevBody[i].updateVelocity(dt);//更新刚体速度，在PBDBodyInfo里面了，是刚体计算了
     }
 
-    //
     m_averageBodyInfo.resize(m_prevBody.size());
     Function1Pt::copy(m_averageBodyInfo, m_prevBody);
 
-    //cuSafeCall(cudaMemcpy(m_body->begin(), m_hostBody, sizeof(PBDBodyInfo<double>)*m_body->size(),
-    //	cudaMemcpyHostToDevice));
 }
 
 }  // namespace PhysIKA

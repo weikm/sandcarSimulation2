@@ -107,7 +107,7 @@ bool PBDCar::build()
 
         // Wheel rigid.
         m_wheels[i] = std::make_shared<RigidBody2<DataType3f>>("Wheel" + std::to_string(i));
-        m_wheels[i]->setMu(5.0);//这里是不是控制车轮转速的？setMu(5.0)，改变后并没有变化。
+        m_wheels[i]->setMu(5.0);//摩擦系数 但不参与计算。
         steeringRigid->addChild(m_wheels[i]);
         int idwheel = m_rigidSolver->addRigid(m_wheels[i]);
         idwheels[i] = idwheel;
@@ -161,13 +161,13 @@ bool PBDCar::build()
 
     forwardForcePoint = (wheelRelPosition[0] + wheelRelPosition[1]) / 2;
 
-    m_chassis->setLinearVelocity(m_chassis->getLinearVelocity() * 0.99);//最后这个0.99是加速之后的用来自动减速的比率吧，但是速度是个假参数
+    m_chassis->setLinearVelocity(m_chassis->getLinearVelocity() * linearVelocityDamping);//最后这个0.99是加速之后的用来自动减速的比率吧
 	m_rigidSolver->addCustomUpdateFunciton(std::bind(&PBDCar::updateForce, this, std::placeholders::_1));
 	//上面这句到底啥意思？
     return true;
 }
 
-void PBDCar::advance(Real dt)//没有这个函数那么车一跑就没完了//但这个函数在沙地项目中未引用
+void PBDCar::advance(Real dt)
 {
     //return;
     //forward(dt);
@@ -176,11 +176,8 @@ void PBDCar::advance(Real dt)//没有这个函数那么车一跑就没完了//�
     //this->updateForce(dt);
     if (!m_accPressed)
     {
-        forwardForce = 0;//牵引力置零，，我才是按下w或s松手之后应该调用这个，卸掉牵引力
-		m_chassis->setLinearVelocity(m_chassis->getLinearVelocity() * 0.99);//0.99改小的话就给上了自动刹车，实现了阻尼！
-		//点乘判断前进/后退
-		//然后给一个阻力，大小与速度大小成正比，方向与速度指针方向相反
-		//
+        forwardForce = 0;
+		m_chassis->setLinearVelocity(m_chassis->getLinearVelocity() * 0.99);
     }
     m_accPressed = false;
 
@@ -192,61 +189,58 @@ void PBDCar::advance(Real dt)//没有这个函数那么车一跑就没完了//�
     //printf("Car Vel:  %lf %lf %lf \n", carVel[0], carVel[1], carVel[2]);
 	
 	Vector3f a = m_chassis->getLinearVelocity();
-	//std::printf("wkmznb%f%f%f", a[0], a[1], a[2]);//输出速度向量
 
     return;
 }
 
-//前进，按下w则调用此函数
+
 void PBDCar::forward(Real dt)
 {
     forwardDir = this->_getForwardDir();
 	if(forwardForce<maxForce / SlipperyRate && forwardForce>(-1.0)*maxForce / SlipperyRate){
 		forwardForce += forwardForceAcc * (dt >= 0 ? 1 : -1);//前向牵引力！//前向牵引力增加量forwardForceAcc在demoparticlesand里面设置的是1000
 	}
-	//水生叫我输出一下看看
-	//std::cout<<forwardForce<<std::endl;//我知道了！一直按着w导致forwardForce不断上升，太大了，导致飞车！
-    //Vector3f force = forwardForce * forwardDir;
-    //Vector3f torque = m_chassis->getGlobalQ().rotate(forwardForcePoint).cross(force);
-    //m_chassis->addExternalForce(force);
-    //m_chassis->addExternalTorque(torque);
+
 
     m_accPressed = true;
 }
 
-//后退，按下s则调用此函数
+
 void PBDCar::backward(Real dt)
 {
     forward(-dt);
 }
-//左打轮，按下a则调用此函数
+
 void PBDCar::goLeft(Real dt)
 {
-    currentSteering -= steeringSpeed * dt;//打轮速度 乘时间//魏克名在这加了个“-”，不加的话，导致a为向右打轮，d为向左
-	//轮胎偏转角不能超出上下界
+    currentSteering -= steeringSpeed * dt;
     currentSteering = currentSteering > steeringLowerBound ? currentSteering : steeringLowerBound;
     currentSteering = currentSteering < steeringUpperBound ? currentSteering : steeringUpperBound;
 
     m_accPressed = true;
 }
 
-//右打轮，按下d则调用此函数
+
 void PBDCar::goRight(Real dt)
 {
     goLeft(-dt);
 }
 
-//brake刹车
+
 void PBDCar::brake(Real dt)
 {
-	m_chassis->setLinearVelocity(m_chassis->getLinearVelocity() * 0.6);
+	m_chassis->setLinearVelocity(m_chassis->getLinearVelocity() * 0.6);//这个0.6是刹车衰减系数
 }
 
 void PBDCar::set_SlipperyRate(float rate) {
 	SlipperyRate = rate;
 }
 
-//更新车轮转角
+void PBDCar::set_linearVelocityDamping(float rate) {
+	linearVelocityDamping= rate;
+}
+
+
 void PBDCar::_updateWheelRotation(Real dt)
 {
     Quaternionf relq0 = m_steeringRigid[0]->getGlobalQ().getConjugate() * m_wheels[0]->getGlobalQ();
@@ -265,14 +259,14 @@ void PBDCar::_updateWheelRotation(Real dt)
     m_wheels[1]->setGlobalQ(m_steeringRigid[1]->getGlobalQ() * relq1);
 }
 
-//下面是三个旋转维度
+
 Vector3f PBDCar::_getForwardDir()
 {
     Vector3f curRight = m_wheels[0]->getGlobalQ().rotate(wheelLocalRight[0]);
     Vector3f curUp    = m_chassis->getGlobalQ().rotate(wheelupDirection);
     forwardDir        = curUp.cross(curRight).normalize();
 
-    return forwardDir;//三维向量
+    return forwardDir;
 }
 
 Vector3f PBDCar::_getRightDir()
@@ -286,7 +280,7 @@ Vector3f PBDCar::_getUpDir()
 }
 
 void PBDCar::_setRigidForceAsGravity()
-{//设置外部力和力矩
+{
     m_chassis->setExternalForce(m_gravity * chassisMass);
     m_chassis->setExternalTorque(Vector3f());
 
@@ -330,7 +324,7 @@ void PBDCar::computeAABB(std::shared_ptr<PointSet<DataType3f>> points, Vector3f&
 
 void PBDCar::_doVelConstraint(Real dt)
 {
-    double linDamp = pow(1.0 - linearDamping, dt);//幂函数
+    double linDamp = pow(1.0 - linearDamping, dt);
     double angDamp = pow(1.0 - angularDamping, dt);
 
     m_chassis->setLinearVelocity(m_chassis->getLinearVelocity() * linDamp);
@@ -375,7 +369,7 @@ Quaternionf PBDCar::_rotationToStandardLocal()
     return rot;
 }
 
-void PBDCar::updateForce(Real dt)//在build里调用，更新受力
+void PBDCar::updateForce(Real dt)
 {
     Vector3f chaForce;
     Vector3f chaTorque;
@@ -398,18 +392,14 @@ void PBDCar::updateForce(Real dt)//在build里调用，更新受力
     }
 
     forwardDir        = this->_getForwardDir();
-    Vector3f forwardF = forwardDir * forwardForce;//牵引力矢量
+    Vector3f forwardF = forwardDir * forwardForce;
     Vector3f forwardT = m_chassis->getGlobalQ().rotate(forwardForcePoint).cross(forwardF);
 
-    chaForce += forwardF;//合外力，那么有了这个力之后，是怎么调用的呢？没用到速度？直接时间积分算距离？
-    chaTorque += forwardT;//力矩
+    chaForce += forwardF;
+    chaTorque += forwardT;
 
-	//chaTorque[0] = 0;
-	//chaTorque[1] = 0;
-	//chaTorque[2] = 0;
-
-    chaForce += m_gravity * m_chassis->getI().getMass();//重力加速度*底盘质量
-    m_chassis->setExternalForce(chaForce);//底盘调用其力和力矩
+    chaForce += m_gravity * m_chassis->getI().getMass();
+    m_chassis->setExternalForce(chaForce);
     m_chassis->setExternalTorque(chaTorque);
 }
 

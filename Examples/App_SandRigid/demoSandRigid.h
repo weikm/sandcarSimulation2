@@ -6,6 +6,7 @@
 
 #include "Dynamics/RigidBody/Vehicle/PBDCar.h"
 #include "Dynamics/RigidBody/Vehicle/PBDCraft.h"
+#include "Dynamics/RigidBody/Vehicle/PBDFixedWingUAVs.h"
 
 #include "Dynamics/Sand/SSESandSolver.h"
 #include "Dynamics/Sand/SandVisualPointSampleModule.h"
@@ -918,13 +919,22 @@ public:
 				m_instance->m_car->goDown(0.016);
 				break;
 			case 'r':
-				m_instance->m_car->zizhuan(0.016);
+				m_instance->m_car->zizhuan();
 				break;
 			case 'b':
-				m_instance->m_car->brake(0.016);
+				m_instance->m_car->brake();
 				break;
 			case 'v':
 				m_instance->_changeVisibility();
+
+			case 'i':
+				m_instance->m_car->NorthWind();
+			case 'h':
+				m_instance->m_car->WestWind();
+			case 'n':
+				m_instance->m_car->SouthWind();
+			case 'k':
+				m_instance->m_car->EastWind();
 
 				break;
 			default:
@@ -1058,4 +1068,109 @@ public:
 	std::shared_ptr<PBDCar>                       m_car;
 
 
+};
+
+class DemoHeightFieldFixedWingUAVs : public GLApp
+{
+
+private:
+    DemoHeightFieldFixedWingUAVs()
+    {
+        setKeyboardFunction(DemoHeightFieldFixedWingUAVs::demoKeyboardFunction);
+        createWindow(1024, 400);
+    }
+    static DemoHeightFieldFixedWingUAVs* m_instance;
+
+public:
+    static DemoHeightFieldFixedWingUAVs* getInstance()
+    {
+        if (m_instance == 0)
+            m_instance = new DemoHeightFieldFixedWingUAVs;
+        return m_instance;
+    }
+
+    void createScene();
+
+    void run()
+    {
+        Log::setOutput("console_log.txt");
+        Log::setLevel(Log::Info);
+        Log::sendMessage(Log::Info, "Simulation begin");
+
+        mainLoop();
+
+        Log::sendMessage(Log::Info, "Simulation end!");
+    }
+
+    static void demoKeyboardFunction(unsigned char key, int x, int y)
+    {
+		
+        {
+
+            if (!m_instance)
+                return;
+            switch (key)
+            {
+                case 'a':
+                    m_instance->m_car->goLeft(0.016); 
+                    break;
+                case 'd':
+                    m_instance->m_car->goRight(0.016);
+                    break;
+                case 'w':
+                    m_instance->m_car->Accelerate(0.016);  
+                    break;
+                case 's':
+                    m_instance->m_car->Decelerate(0.016);
+                    break;
+                case 'q':
+                    m_instance->m_car->goUp(0.016);  
+                    break;
+                case 'e':
+                    m_instance->m_car->goDown(0.016);
+                    break;
+               /* case 'r':
+                    m_instance->m_car->zizhuan(0.016);
+                    break;*/
+                case 'b':
+                    m_instance->m_car->brake();
+                    break;
+                case 'v':
+                    m_instance->_changeVisibility();
+
+                    break;
+                default:
+                    GLApp::keyboardFunction(key, x, y);
+                    break;
+            }
+        }
+    }
+
+private:
+    void _changeVisibility()
+    {
+        if (m_rigidVisible)
+        {
+            for (int i = 0; i < m_rigids.size(); ++i)
+            {
+                m_rigids[i]->deleteVisualModule(m_rigidRenders[i]);
+            }
+        }
+        else
+        {
+            for (int i = 0; i < m_rigids.size(); ++i)
+            {
+                m_rigids[i]->addVisualModule(m_rigidRenders[i]);
+            }
+        }
+        m_rigidVisible = !m_rigidVisible;
+    }
+
+public:
+    std::vector<RigidBody2_ptr>                   m_rigids;
+    std::vector<std::shared_ptr<RigidMeshRender>> m_rigidRenders;
+
+    bool m_rigidVisible = true;
+
+    std::shared_ptr<PBDFixedWingUAVs> m_car;
 };

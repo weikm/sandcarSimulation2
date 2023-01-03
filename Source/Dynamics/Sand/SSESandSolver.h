@@ -118,7 +118,9 @@ public:
     {
         return m_CFLNumber;
     }
-
+	void set_SandorMud(int zeroorone) {
+		sand0mud1=zeroorone;
+	}
 
 
 
@@ -131,7 +133,7 @@ public:
 
 private:
 private:
-	int sand0mud1=1;
+	int sand0mud1;
     SandGrid m_sandData;
     //SandGridInfo m_sandinfo;
 	float* mu;

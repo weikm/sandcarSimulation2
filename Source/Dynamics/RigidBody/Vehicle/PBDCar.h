@@ -45,6 +45,7 @@ public:
     }
 
 	void set_SlipperyRate(float rate);
+	void set_linearVelocityDamping(float rate);
 
     void updateForce(Real dt);
 
@@ -123,6 +124,8 @@ public:
 	//长度和角度衰减
     float linearDamping  = 0.9;//原来是0。这个阻尼控制的是加速的速度。约接近1，加速越慢。
     float angularDamping = 0;
+	//线速度的衰减系数
+	float linearVelocityDamping  = 0.99;
 	//悬架长度和强度
     float suspensionLength   = 0.1;//原来是0.05
     float suspensionStrength = 1000000;

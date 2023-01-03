@@ -518,6 +518,7 @@ void                          DemoHeightFieldMudLandRigid::createScene()
 	sandSim->setSandSolver(psandSolver);
 	root->setSandSolver(psandSolver);
 	root->addChild(sandSim);
+	psandSolver->set_SandorMud(1);
 
 	// Initialize sand grid data.
 	SandGrid& sandGrid = psandSolver->getSandGrid();  //sandSim->getSandGrid();
@@ -731,6 +732,7 @@ void                          DemoHeightFieldMudLandCar::createScene()
 	sandSim->setSandSolver(psandSolver);
 	root->setSandSolver(psandSolver);
 	root->addChild(sandSim);
+	psandSolver->set_SandorMud(1);
 
 	// Initialize sand grid data.
 	SandGrid& sandGrid = psandSolver->getSandGrid();  //sandSim->getSandGrid();
@@ -749,7 +751,7 @@ void                          DemoHeightFieldMudLandCar::createScene()
 	{
 		for (int j = 0; j < 128; j++)
 		{
-			surfaceHeight[j * 128 + i] = 0.0;//0.2
+			surfaceHeight[j * 128 + i] = 0.2;//0.2
 		}
 	}
 
@@ -955,7 +957,7 @@ void                          DemoHeightFieldMudLandCar::createScene()
 		//m_car->suspensionStrength = 1000000;//悬架强度，魏注释掉
 
 		//m_car->carPosition = Vector3f(0.3, 0.5, 0.5) + chassisCenter;//chassisCenter到这还是000
-		m_car->carPosition = Vector3f(0.35, 0.7, 1.5) + chassisCenter;//设置车子初始位置！！！！！
+		m_car->carPosition = Vector3f(0.35, 0.7, 3.5) + chassisCenter;//设置车子初始位置！！！！！
 
 		//double rotRad = 90.0 / 180.0 * std::_Pi;
 		//m_car->carRotation = Quaternion<float>(-std::sin(rotRad / 2.0), 0, 0., std::cos(rotRad / 2.0)).normalize();
@@ -1242,7 +1244,9 @@ void                  DemoHeightFieldcraft::createScene()
 			//Vector3f boundingsize;//这个是死代码吧，后面再也没有了，魏注释掉了
 
 			// Chassis mesh.底盘网格和包围盒
-			ObjFileLoader chassisLoader("../../Media/car2/chassis_cube.obj");//载入底盘文件
+			//ObjFileLoader chassisLoader("../../Media/car2/chassis_cube.obj");//载入底盘文件
+			ObjFileLoader chassisLoader("../../Media/craft/siyiwurenji.obj");//载入底盘文件
+
 
 			chassisTri = std::make_shared<TriangleSet<DataType3f>>();//底盘上设置三角网格
 			chassisTri->setPoints(chassisLoader.getVertexList());
@@ -1739,7 +1743,273 @@ void                          DemoHeightFieldSlippery::createScene()
 	//this->enableDisplayFrame();
 }
 
+//固定翼无人机
+DemoHeightFieldFixedWingUAVs* DemoHeightFieldFixedWingUAVs::m_instance = 0;
+void                          DemoHeightFieldFixedWingUAVs::createScene()
+{
+    SandGridInfo sandinfo;
+    sandinfo.nx               = 64 * 2;
+    sandinfo.ny               = 64 * 2;  //32
+    sandinfo.griddl           = 0.05;
+    sandinfo.mu               = 0.7;
+    sandinfo.drag             = 1;
+    sandinfo.slide            = 10 * sandinfo.griddl;
+    sandinfo.sandRho          = 1000.0;
+    double sandParticleHeight = 0.1;
+    double slideAngle         = 15.0 / 180.0 * 3.14159;  //初始滑动角度
 
+    SceneGraph& scene = SceneGraph::getInstance();
+    scene.setUpperBound(Vector3f(10, 10, 10));
+    scene.setLowerBound(Vector3f(-10, -5, -10));
+
+    // Root node. Also the simulator.
+    std::shared_ptr<HeightFieldSandRigidInteraction> root = scene.createNewScene<HeightFieldSandRigidInteraction>();
+    root->setActive(true);
+    root->setDt(0.02);                                                              //0.02
+    auto interactionSolver                         = root->getInteractionSolver();  //这里是耦合解算
+    interactionSolver->m_useStickParticleVelUpdate = false;
+
+    root->varCHorizontal()->setValue(1.5);
+    root->varCVertical()->setValue(1.5);
+    root->varBouyancyFactor()->setValue(10);
+    root->varDragFactor()->setValue(1.0);
+
+    // Sand Simulator.
+    std::shared_ptr<SandSimulator> sandSim     = std::make_shared<SandSimulator>();
+    std::shared_ptr<SSESandSolver> psandSolver = std::make_shared<SSESandSolver>();  //这里高度场是SSE，粒子法是PBD
+    sandSim->needForward(false);
+    sandSim->setSandSolver(psandSolver);
+    root->setSandSolver(psandSolver);
+    root->addChild(sandSim);
+
+    // Initialize sand grid data.
+    SandGrid& sandGrid = psandSolver->getSandGrid();                  //sandSim->getSandGrid();
+    sandGrid.setSandInfo(sandinfo);                                   //把最开始的沙子网格设置导进去
+    root->setSandGrid(sandGrid.m_sandHeight, sandGrid.m_landHeight);  //这里导入两层高度场，导入根节点了！需要把第三高度场也导进去！
+
+    // Height
+    std::vector<float> landHeight(sandinfo.nx * sandinfo.ny);
+    std::vector<float> surfaceHeight(sandinfo.nx * sandinfo.ny);
+    //std::vector<float> muValue(sandinfo.nx * sandinfo.ny);
+    //从这里像上面俩一样给mu vector导进去！！！！
+    std::vector<int> humpBlock = { 0, 20, 5, 25 };
+
+    for (int i = 0; i < 128; i++)  //给沙子赋值高度
+    {
+        for (int j = 0; j < 128; j++)
+        {
+            surfaceHeight[j * 128 + i] = 0.0;  //0.2
+        }
+    }
+
+    // land
+    float dhLand = sandinfo.griddl * tan(slideAngle);
+    float lhLand = dhLand * sandinfo.nx / 2.0;
+    //给硬地赋值
+    for (int i = 0; i < sandinfo.nx; ++i)
+    {
+        for (int j = 0; j < sandinfo.ny; ++j)
+        {
+            double curh = 0;
+            landHeight[j * sandinfo.nx + i] = curh;
+        }
+    }
+
+    sandGrid.initialize(&(landHeight[0]), &(surfaceHeight[0]));  //这里导入两个高度场
+
+    // Rendering module of simulator.
+    auto pRenderModule = std::make_shared<PointRenderModule>();  //这是粒子渲染，应该可以用其他的渲染器，都试一下。尤其是surface渲染。
+    //pRenderModule->varRenderMode()->getValue().currentKey() = PointRenderModule::RenderModeEnum::SPRITE;
+    pRenderModule->setSphereInstaceSize(sandinfo.griddl * 0.3);                           //sandinfo.griddl * 0.3 这是粒子大小
+    pRenderModule->setColor(Vector3f(210.0f / 255.0f, 133.0f / 255.0f, 63.0f / 255.0f));  //1.0f, 1.0f, 122.0f / 255.0f
+    sandSim->addVisualModule(pRenderModule);                                              //棕色向量能搜到。
+
+    // topology
+    auto topology = std::make_shared<PointSet<DataType3f>>();
+    sandSim->setTopologyModule(topology);
+    topology->getPoints().resize(1);
+
+    // Render point sampler (module).
+    auto psampler = std::make_shared<SandHeightRenderParticleSampler>();
+    sandSim->addCustomModule(psampler);
+    psampler->m_sandHeight = &sandGrid.m_sandHeight;
+    psampler->m_landHeight = &sandGrid.m_landHeight;
+    psampler->Initalize(sandinfo.nx, sandinfo.ny, 3, 2, sandinfo.griddl);
+
+    //--------------------------------------------------------------------
+    /// ------  Rigid ------------
+    std::shared_ptr<PBDSolverNode> rigidSim = std::make_shared<PBDSolverNode>();
+    rigidSim->getSolver()->setUseGPU(true);
+    rigidSim->needForward(false);
+    auto rigidSolver = rigidSim->getSolver();
+
+    root->setRigidSolver(rigidSolver);
+    root->addChild(rigidSim);
+
+    double   scale1d = 1.0;
+    Vector3f scale(scale1d, scale1d, scale1d);
+    double   rhorigid = 2000;  //密度
+    float    radius   = 1.0;
+    radius *= scale1d;
+    float    rigid_mass = rhorigid * 4.0 * std::_Pi * radius * radius * radius;
+    Vector3f rigidI     = RigidUtil::calculateSphereLocalInertia(rigid_mass, radius);
+
+    /// rigids body
+
+    ////车-------------------------------------------------------------------------------------------
+    {
+        /// ------  Rigid ------------
+        //13PBD刚体模拟节点
+        std::shared_ptr<PBDSolverNode> rigidSim = std::make_shared<PBDSolverNode>();  //PBD刚体模拟节点
+        rigidSim->getSolver()->setUseGPU(true);
+        rigidSim->needForward(false);
+        auto rigidSolver = rigidSim->getSolver();
+
+        root->setRigidSolver(rigidSolver);
+        root->addChild(rigidSim);
+
+        // Car.14小车内部数据类型
+        double   scale1d = 1.0;//0.2
+        Vector3d scale3d(scale1d, scale1d, scale1d);
+        Vector3f scale3f(scale1d, scale1d, scale1d);  //(1,1,1)
+
+        Vector3f chassisCenter;  //三维数组，初始都是000
+        Vector3f wheelCenter[4];
+        Vector3f chassisSize;
+        Vector3f wheelSize[4];
+
+        std::shared_ptr<TriangleSet<DataType3f>> chassisTri;  //底盘和轮子都设置为三角网格
+        std::shared_ptr<TriangleSet<DataType3f>> wheelTri[4];
+
+        DistanceField3D<DataType3f> chassisSDF;
+        DistanceField3D<DataType3f> wheelSDF[4];
+
+        // Load car mesh.15载入底盘和轮子的网格和SDF
+        {
+            //Vector3f boundingsize;//这个是死代码吧，后面再也没有了，魏注释掉了
+
+            // Chassis mesh.底盘网格和包围盒
+            //ObjFileLoader chassisLoader("../../Media/craft/gudingyiwurenji.obj");  //载入底盘文件
+            //ObjFileLoader chassisLoader("../../Media/craft/siyiwurenji.obj");//载入底盘文件
+			ObjFileLoader chassisLoader("../../Media/car2/chassis_cube.obj");//载入底盘文件
+
+            chassisTri = std::make_shared<TriangleSet<DataType3f>>();  //底盘上设置三角网格
+            chassisTri->setPoints(chassisLoader.getVertexList());
+            chassisTri->setTriangles(chassisLoader.getFaceList());
+            computeBoundingBox(chassisCenter, chassisSize, chassisLoader.getVertexList());  //计算包围盒，点进去就是算法//问一下啥是计算包围盒？？？
+    
+            chassisTri->scale(scale3f);             //这俩行不懂，scale函数和translate函数是啥意思？？？
+            chassisTri->translate(-chassisCenter);  //大概是网格节点都需要带上这俩，那具体是啥意思？？
+
+            // Chassis sdf.
+            chassisSDF.loadSDF("../../Media/car2/chassis_cube.sdf");  //载入底盘SDF文件
+            chassisSDF.scale(scale1d);                                //这俩行不懂，scale函数和translate函数是啥意思？
+            chassisSDF.translate(-chassisCenter);                     //所以SDF节点也要带上这俩？？？
+            //interactionSolver->addSDF(sdf);
+
+            for (int i = 0; i < 4; ++i)  //四个轮子
+            {
+                string objfile("../../Media/car2/wheel.obj");  
+                string sdffile("../../Media/car2/wheel.sdf");
+
+                // Wheel mesh.轮子设置上网格
+                ObjFileLoader wheelLoader(objfile);
+                wheelTri[i] = std::make_shared<TriangleSet<DataType3f>>();
+                wheelTri[i]->setPoints(wheelLoader.getVertexList());  //这两行是啥？
+                wheelTri[i]->setTriangles(wheelLoader.getFaceList());
+                computeBoundingBox(wheelCenter[i], wheelSize[i], wheelLoader.getVertexList());  //计算包围盒？？？
+                //wheelCenter[i] *= scale3f;//乘完还是000
+                //wheelSize[i] *= scale3f;//乘完还是000
+                wheelTri[i]->scale(scale3f);
+                wheelTri[i]->translate(-wheelCenter[i]);
+
+                // Wheel sdf.
+                DistanceField3D<DataType3f>& sdf = wheelSDF[i];
+                sdf.loadSDF(sdffile);
+                sdf.scale(scale1d);
+                sdf.translate(-wheelCenter[i]);
+                //interactionSolver->addSDF(sdf);
+            }
+        }
+
+        //16车的系列参数设置,m_car登场!!!!!!!!!!!!!!
+        m_car = std::make_shared<PBDFixedWingUAVs>();  //点进去能看见PBDCar这个类，包含下面一系列成员和函数
+        rigidSim->addChild(m_car);
+        m_car->m_rigidSolver = rigidSolver;
+
+        m_car->carPosition = Vector3f(0.35, 1.0, 0.1) + chassisCenter;  //设置车子初始位置！！！！！
+        m_car->wheelupDirection    = Vector3f(0, 1, 0);  //轮子在z轴方向上和底盘的相对位置
+        m_car->wheelRightDirection = Vector3f(1, 0, 0);  //啥意思，反正去掉之后车就动不了了
+
+        m_car->chassisMass    = 1000;                                                                    //设置底盘质量
+        m_car->chassisInertia = RigidUtil::calculateCubeLocalInertia(m_car->chassisMass, chassisSize);  //计算底盘惯性并设置
+
+        m_car->steeringLowerBound = -0.5;  //旋转角下边界，啥意思？？？？
+        m_car->steeringUpperBound = 0.5;
+
+        //m_car->forwardForceAcc = 1000;//前向牵引力增加量
+        //m_car->breakForceAcc ;
+        m_car->steeringSpeed = 1.0;        //
+        m_car->maxVel        = /*2.5*/ 8;  //最大速度
+
+        // Build.组装
+        m_car->build();
+
+        // Add visualization module and topology module.添加可视化模块和拓扑模块。
+        m_car->m_chassis->setTopologyModule(chassisTri);  //拓扑模块。啥用？啥意思？？？？
+        auto chassisRender = std::make_shared<RigidMeshRender>(m_car->m_chassis->getTransformationFrame());
+        chassisRender->setColor(Vector3f(0.8, std::rand() % 1000 / ( double )1000, 0.8));
+        m_car->m_chassis->addVisualModule(chassisRender);
+        interactionSolver->addSDF(chassisSDF, m_car->m_chassis->getId());
+        //////////
+        //Vector3f a = m_car->m_chassis->getGlobalR();
+        //cout <<a[0]<<a[1]<<a[2]<<endl;
+        //////////
+        // Bounding radius of chassis.底盘的边界半径？啥意思？？点进去这个函数看看
+        float chassisRadius = chassisTri->computeBoundingRadius();
+        m_car->m_chassis->setRadius(chassisRadius);
+
+        m_rigids.push_back(m_car->m_chassis);
+        m_rigidRenders.push_back(chassisRender);
+
+        interactionSolver->m_prigids = &(rigidSolver->getRigidBodys());
+    }
+    //---------------------------------------------------------------------------------------------
+	//m_car->carPosition = m_car->m_chassis->getRelativeR();//write back carPosition wkm. code position is wrong.
+	//std::cout << "位置" << std::endl;
+	//std::cout << m_car->carPosition[0] << m_car->carPosition[1] << m_car->carPosition[2] << std::endl;
+    // Land mesh.
+    {
+        auto landrigid = std::make_shared<RigidBody2<DataType3f>>("Land");
+        root->addChild(landrigid);
+
+        // Mesh triangles.
+        auto triset = std::make_shared<TriangleSet<DataType3f>>();
+        landrigid->setTopologyModule(triset);
+
+        // Generate mesh.
+        auto&           hfland = sandGrid.m_landHeight;
+        HeightFieldMesh hfmesh;
+        hfmesh.generate(triset, hfland);
+
+        // Mesh renderer.
+        auto renderModule = std::make_shared<RigidMeshRender>(landrigid->getTransformationFrame());
+        renderModule->setColor(Vector3f(210.0 / 255.0, 180.0 / 255.0, 140.0 / 255.0));  //210.0 / 255.0, 180.0 / 255.0, 140.0 / 255.0
+        landrigid->addVisualModule(renderModule);
+    }
+
+    // Add boundary rigid.
+    PkAddBoundaryRigid(root, Vector3f(), sandinfo.nx * sandinfo.griddl, sandinfo.ny * sandinfo.griddl, 0.05, 0.15);
+
+    // Translate camera position
+    auto&    camera_ = this->activeCamera();
+    Vector3f camPos(0, 30, 35);
+    camera_.lookAt(camPos, Vector3f(0, 0, 0.), Vector3f(0, 1, 0));
+
+    //this->disableDisplayFrameRate();
+    this->enableDisplayFrameRate();
+    //this->enableDisplayFrame();
+}
 
 
 

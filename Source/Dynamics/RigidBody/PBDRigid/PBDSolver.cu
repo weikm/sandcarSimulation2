@@ -8,6 +8,7 @@
 
 namespace PhysIKA {
 //template<typename TReal>
+//default: 10 step, and not use GPU
 PBDSolver::PBDSolver()
     : m_numSubstep(10), m_useGPU(false)
 {
@@ -327,7 +328,7 @@ __global__ void PBD_updateJointLocalPose(PBDJoint<double>* joints, int nJoints)
 }
 
 void PBDSolver::setContactJoints(DeviceDArray<ContactInfo<double>>& contacts, int nContact)
-{//啥时候会执行这个程序？
+{
     m_nJoints = m_nPermanentJoints + nContact;
 
     if (nContact <= 0 || m_nJoints <= 0)
@@ -2201,7 +2202,6 @@ void PBDSolver::solveSubStepGPU(Real dt)
 //		cuExecute(m_nJoints, PBD_updateConstraintNumber,
 //			m_GPUJoints.begin(), m_nJoints
 //		);
-
 //		cuExecute(m_nJoints, PBD_solveJoints,
 //			m_GPUJoints.begin(), m_nJoints,
 //			m_GPUPosChange.begin(), m_GPURotChange.begin(), m_GPUConstraintCount.begin(), m_nBodies,
@@ -2681,6 +2681,9 @@ void PBDSolver::forwardSubStep(Real dt)
         //m_jontDataDirty = false;
     }
 }
+
+
+//-------------------------------------------------------------------------------------
 
 PBDParticleBodyContactSolver::PBDParticleBodyContactSolver()
 {

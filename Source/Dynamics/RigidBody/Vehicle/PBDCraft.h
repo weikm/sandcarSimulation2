@@ -34,9 +34,16 @@ namespace PhysIKA {
 
 		void goDown(Real dt);
 
-		void zizhuan(Real dt);
+		void EastWind();
+		void SouthWind();
+		void WestWind();
+		void NorthWind();
 
-		void brake(Real dt);
+		void zizhuan();
+
+		void brake();
+
+
 
 		void PBDCraft::computeAABB(std::shared_ptr<PointSet<DataType3f>> points, Vector3f& center, Vector3f& halfSize);
 		
@@ -61,13 +68,13 @@ namespace PhysIKA {
 		Quaternionf _rotationToStandardLocal();
 
 	public:
-		Vector3f          carPosition;//车子（质点）位置
-		Quaternion<float> carRotation;//车子角度
+		Vector3f          carPosition;
+		Quaternion<float> carRotation;
 
-		Vector3f          wheelRelPosition[4];//轮子相对位置
-		Quaternion<float> wheelRelRotation[4];//轮子相对角度
+		Vector3f          wheelRelPosition[4];
+		Quaternion<float> wheelRelRotation[4];
 
-		Vector3f wheelupDirection;//轮子在z轴上与底盘的相对位置
+		Vector3f wheelupDirection;
 		Vector3f wheelRightDirection;  // wheel right direction in car frame.
 
 		// Visualization information.
@@ -82,18 +89,18 @@ namespace PhysIKA {
 		float    chassisMass = 1.0;
 		Vector3f chassisInertia;
 		// adjust by HNU
-		// C2397    从“double”转换到“float”需要收缩转换
+		// C2397   
 		float    wheelMass[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
 		Vector3f wheelInertia[4];
 		//
 		float wheelRadius[4] = { 1.0, 1.0, 1.0, 1.0 };
-		//打轮的左右边界
+		
 		float steeringLowerBound;
 		float steeringUpperBound;
 
 		Vector3f wheelLocalRight[2];  // wheel right direction in wheel local frame.
 
-		Vector3f m_gravity = { 0, /*-9.8*/0, 0 };//重力加速度
+		Vector3f m_gravity = { 0, /*-9.8*/0, 0 };
 
 		//std::shared_ptr<RigidBody2<DataType3f>> m_steeringRigid[2];
 
@@ -109,25 +116,26 @@ namespace PhysIKA {
 		int wheelCollisionGroup = 1;
 		int wheelCollisionMask = 1;
 
-		float forwardForceAcc=1000;//前向加速度，//前向牵引力增加量forwardForceAcc在demoparticlesand里面设置的是1000
+		float forwardForceAcc=1000;
 		float upForceAcc=1000;
 		float rightForceAcc=1000;
 		//float breakForceAcc;
-		float steeringSpeed;//打舵速度
+		float steeringSpeed;
 
 		float maxVel = 2.5;
 		float maxAngVel = 25;
-		//长度和角度衰减
-		float linearDamping = 0.9;//原来是0。这个阻尼控制的是加速的速度。约接近1，加速越慢。
+		
+		float linearDamping = 0.9;
 		float angularDamping = 0;
-		//悬架长度和强度
-		float suspensionLength = 0.1;//原来是0.05
+		
+		float suspensionLength = 0.1;
 		float suspensionStrength = 1000000;
 
-		float currentSteering = 0;//这个被我拿到public里了 wkm
+		float currentSteering = 0;
 
 	private:
 		Vector3f forwardForcePoint;
+
 		Vector3f forwardDir;
 		Vector3f rightDir;
 		Vector3f upDir;
@@ -140,11 +148,22 @@ namespace PhysIKA {
 		Vector3f    rightTorque = { 0,0,0 };
 		Vector3f    upTorque = { 0,0,0 };
 
+		Vector3f    restoreTorque = { 0,0,0 };
+
 		Vector3f vertical= { 0,1,0 };
 
 		float breakForce = 0;
 
+		float EastWindForce = 0.0;
+		float SouthWindForce = 0.0;
+		float WestWindForce = 0.0;
+		float NorthWindForce = 0.0;
 
+		//do not set too many 
+
+		int WindCount = 0;
+
+		int anglecount = 0;
 
 		bool m_accPressed = false;
 

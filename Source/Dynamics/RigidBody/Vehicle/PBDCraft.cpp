@@ -9,6 +9,7 @@
 #include "PBDCraft.h"
 #include <functional>
 #include <cmath>
+#include <math.h>
 namespace PhysIKA {
 	bool PBDCraft::build()//这是很重要的函数
 	{
@@ -41,7 +42,7 @@ namespace PhysIKA {
 		//return true;
 		Quaternionf localToStd_ = _rotationToStandardLocal();
 		Quaterniond localToStd(localToStd_.x(), localToStd_.y(), localToStd_.z(), localToStd_.w());
-
+		
 		
 
 		forwardForcePoint = (wheelRelPosition[0] + wheelRelPosition[1]+ wheelRelPosition[2] + wheelRelPosition[3]) / 4;
@@ -54,8 +55,10 @@ namespace PhysIKA {
 
 	void PBDCraft::advance(Real dt)//没有这个函数那么车一跑就没完了//但这个函数在沙地项目中未引用
 	{
+		//std::cout << "advance跑了" << std::endl;
 		if (!m_accPressed)
 		{
+			//std::cout << "advance里面跑了" << std::endl;
 			forwardForce = 0;//牵引力置零，，按下w或s松手之后应该调用这个，卸掉牵引力
 			upForce = 0;
 			rightForce = 0;
@@ -63,14 +66,25 @@ namespace PhysIKA {
 			rightTorque = { 0,0,0 };
 			upTorque = { 0,0,0 };
 
-			//非水平角度也要置零，保持水平。要操作四元数。//其实不用了，角速度再下面已经自杀车了
+			EastWindForce = 0.0;
+			SouthWindForce = 0.0;
+			WestWindForce = 0.0;
+			NorthWindForce = 0.0;
+
+			WindCount = 0;
+			restoreTorque = { 0,0,0 };
 
 			m_chassis->setLinearVelocity(m_chassis->getLinearVelocity() * 0.8);//0.99改小的话就给上了自动刹车，实现了阻尼！0.88适用于无人机
 			m_chassis->setAngularVelocity(m_chassis->getAngularVelocity() * 0.8);
-			//角速度也要一个自杀车！
-			//点乘判断前进/后退
-			//然后给一个阻力，大小与速度大小成正比，方向与速度指针方向相反
-			
+
+
+			anglecount++;
+			if(anglecount>2){//only really not level move ,do this.//20221013
+				Vector3f faxiangliang = m_chassis->getGlobalQ().rotate({ 0, 1, 0 });
+				if (faxiangliang.cross({ 0,1,0 })[0] != 0.0 || faxiangliang.cross({ 0,1,0 })[1] != 0.0 || faxiangliang.cross({ 0,1,0 })[2] != 0.0) {
+					restoreTorque = faxiangliang.cross({ 0,1,0 }).normalize();
+				}
+			}
 		}
 		m_accPressed = false;
 
@@ -78,78 +92,70 @@ namespace PhysIKA {
 		this->_doVelConstraint(dt);
 		this->m_rigidSolver->setBodyDirty();
 
-		//Vector3f carVel = m_chassis->getLinearVelocity();
-		//printf("Car Vel:  %lf %lf %lf \n", carVel[0], carVel[1], carVel[2]);
-
-		Vector3f a = m_chassis->getLinearVelocity();
-		//std::printf("wkmznb%f%f%f", a[0], a[1], a[2]);//输出速度向量
-
 		return;
 	}
 
-	//前进，按下w则调用此函数
 	void PBDCraft::forward(Real dt)
 	{
 		//forwardDir = this->_getForwardDir();
 		if (forwardForce<10000 && forwardForce>-10000) {
 			forwardForce += forwardForceAcc * (dt >= 0 ? 1 : -1);//前向牵引力！//前向牵引力增加量forwardForceAcc在demoparticlesand里面设置的是1000
 		}
-		/*
-		倾角=(wheelRelPosition[0] - wheelRelPosition[1])叉乘(wheelRelPosition[2] - wheelRelPosition[1])点乘{0,1,0}/向量的模的乘积
-		*/
-		//Vector3f faxiangliang = (wheelRelPosition[0] - wheelRelPosition[1]).cross(wheelRelPosition[3] - wheelRelPosition[1]);
-		//float dianji = faxiangliang.dot({ 0.0,1.0,0.0 });
-		//float jiao = acos(dianji / faxiangliang.norm());
-		////相当于是要求一个二面角（线面角），不用四元数。由轮子位置得到垂直向上向量，再求此向量与010的夹角。小于15度即是if条件
-		////给倾角力矩
-		//printf("%f,%f,%f\n", faxiangliang[0], faxiangliang[1], faxiangliang[2]);//说明，这个法向量有问题。知道了，开始运动之后四轮位置没有写回来
-		//printf("faxiangliang.dot({ 0.0,1.0,0.0 })=%f\n", faxiangliang.dot({ 0.0,1.0,0.0 }));
-		//printf("faxiangliang.norm()=%f\n", faxiangliang.norm());
-		//printf("倾角大小=%f\n",jiao);
-		//if (jiao < 3.14 / 12) {
-		//	if (dt > 0) {
-		//		rightTorque = { 0, 0, -100 };
-		//	}
-		//	else if (dt < 0) {
-		//		rightTorque = { 0, 0, 100 };
-		//	}
-		//}
 
 		m_accPressed = true;
+
+		//make a move angle
+		Vector3f faxiangliang = m_chassis->getGlobalQ().rotate({ 0, 1, 0 });//(wheelRelPosition[0] - wheelRelPosition[1]).cross(wheelRelPosition[2] - wheelRelPosition[1]);
+		//std::cout << "法向量"<<faxiangliang[0] << faxiangliang[1] << faxiangliang[2]<<std::endl;
+		float jiao = acos(faxiangliang.dot({ 0.0,1.0,0.0 }) / faxiangliang.norm());
+		//set recover Torque
+		if (jiao < 3.14 / 20 ) {
+			if (dt > 0) {
+				forwardTorque = { 0.0, 0.0, -800.0 };
+			}
+			else if (dt < 0) {
+				forwardTorque = { 0, 0, 800 };
+			}
+		}
+		anglecount = 0;
+		//m_accPressed = true;
 	}
 
-	//后退，按下s则调用此函数
 	void PBDCraft::backward(Real dt)
 	{
 		forward(-dt);
 	}
-	//左打轮，按下a则调用此函数
-	void PBDCraft::goLeft(Real dt)//要改，直接向左移
+	
+	void PBDCraft::goLeft(Real dt)
 	{
 		if (rightForce<10000 && rightForce>-10000) {
 			rightForce += rightForceAcc * (dt >= 0 ? 1 : -1);//右向牵引力！
 		}
 		m_accPressed = true;
-
-		//Vector3f faxiangliang = (wheelRelPosition[0] - wheelRelPosition[1]).cross(wheelRelPosition[2] - wheelRelPosition[1]);
-		//float jiao = acos(faxiangliang.dot({ 0.0,1.0,0.0 }) / faxiangliang.norm());
-		////给个倾角力矩
-		//if (jiao < 3.14 / 12) {
-		//	if (dt > 0) {
-		//		forwardTorque = { -100, 0, 0 };
-		//	}
-		//	else if (dt < 0) {
-		//		forwardTorque = { 100, 0, 0 };
-		//	}
-		//}
+		
+		//make a move angle
+		Vector3f faxiangliang = m_chassis->getGlobalQ().rotate({ 0, 1, 0 });//(wheelRelPosition[0] - wheelRelPosition[1]).cross(wheelRelPosition[2] - wheelRelPosition[1]);
+		//std::cout << "法向量"<<faxiangliang[0] << faxiangliang[1] << faxiangliang[2]<<std::endl;
+		float jiao = acos(faxiangliang.dot({ 0.0,1.0,0.0 }) / faxiangliang.norm());
+		//set recover Torque
+		if (jiao < 3.14 / 20 ) {
+			if (dt > 0) {
+				forwardTorque = { 800.0 * 1.0, 0.0, 0.0  };
+			}
+			else if (dt < 0) {
+				forwardTorque = { -800, 0, 0 };
+			}
+		}
+		anglecount = 0;
+		//m_accPressed = true;
 	}
 
-	//右打轮，按下d则调用此函数
+	
 	void PBDCraft::goRight(Real dt)
 	{
 		goLeft(-dt);
 	}
-	//向上，按下q调用此函数
+	
 	void PBDCraft::goUp(Real dt)
 	{
 		//forwardDir = this->_getForwardDir();
@@ -164,21 +170,57 @@ namespace PhysIKA {
 		goUp(-dt);
 	}
 
-	void PBDCraft::zizhuan(Real dt) {
+	void PBDCraft::zizhuan() {
 		upTorque = { 0,1000,0 };
 
 	}
 
+	void PBDCraft::EastWind(){
+		if (WindCount < 10) {
+			EastWindForce = 1000.0f;//回头在advance里面要置零。
+			++WindCount;
+		}
 
+		m_accPressed = true;
+	}
 
-	//brake刹车
-	void PBDCraft::brake(Real dt)
+	void PBDCraft::SouthWind(){
+		if (WindCount < 10) {
+			SouthWindForce = 1000.0f;//回头在advance里面要置零。
+			++WindCount;
+		}
+		m_accPressed = true;
+
+	}
+
+	void PBDCraft::WestWind(){
+		if (WindCount < 10) {
+			WestWindForce = 1000.0f;//回头在advance里面要置零。
+			++WindCount;
+		}
+		m_accPressed = true;
+
+	}
+
+	void PBDCraft::NorthWind(){
+		if (true ) {
+			NorthWindForce = 1000.0f;
+			++WindCount;
+		}
+
+		m_accPressed = true;
+
+	}
+
+	void PBDCraft::brake()
 	{
 		m_chassis->setLinearVelocity(m_chassis->getLinearVelocity() * 0.5);
+		m_accPressed = true;
+
 	}
 
 	void PBDCraft::_setRigidForceAsGravity()
-	{//设置外部力和力矩
+	{
 		m_chassis->setExternalForce(m_gravity * chassisMass);
 		m_chassis->setExternalTorque(Vector3f());
 
@@ -243,8 +285,6 @@ namespace PhysIKA {
 
 	Quaternionf PBDCraft::_rotationToStandardLocal()
 	{
-		// updir <==> (0, 1, 0)
-		// rightdir <==> (1, 0, 0)
 
 		Vector3f stdup(0, 1, 0);
 		Vector3f stdright(1, 0, 0);
@@ -273,20 +313,18 @@ namespace PhysIKA {
 		return rot;
 	}
 
-	void PBDCraft::updateForce(Real dt)//在build里调用，更新受力
+	void PBDCraft::updateForce(Real dt)
+		//run 20 times
 	{
+		
+
 		Vector3f chaForce;
 		Vector3f chaTorque;
 
-		forwardDir[0] = 1.0;//可能要根据车头朝向来定。
-		forwardDir[1] = 0;
-		forwardDir[2] = 0;
-		rightDir[0] = 0;
-		rightDir[1] = 0;
-		rightDir[2] = 1.0;
-		upDir[0] = 0;
-		upDir[1] = 1.0;
-		upDir[2] = 0;
+		forwardDir = { 1.0,0.0,0.0 };//可能要根据车头朝向来定.现在都是写死了！！！
+		rightDir = { 0.0,0.0,1.0 };
+		upDir = { 0.0,1.0,0.0 };
+
 
 		Vector3f forwardF = forwardDir * forwardForce;//牵引力矢量
 		Vector3f rightF = rightDir * rightForce;
@@ -298,16 +336,30 @@ namespace PhysIKA {
 		chaForce += rightF;
 		chaForce += upF;
 
-		chaTorque += forwardT*0;//合力矩
+		chaTorque += forwardT*0;
 		chaTorque += forwardTorque;
 		chaTorque += rightTorque;
 		chaTorque += upTorque;
+		chaTorque += restoreTorque * 500;
+
+		Vector3f EastWindDir = { -1.0,0.0,0.0 };
+		Vector3f SouthWindDir = { 0.0,0.0,-1.0 };
+		//Vector3f WestWindDir = { 1.0,0.0,0.0 };
+		Vector3f NorthWindDir = { 0.0,0.0,1.0 };
+
 		
 
+		//add wind force
+		chaForce += EastWindForce * EastWindDir;
+		chaForce += SouthWindForce * SouthWindDir;
+		//chaForce += WestWindForce * WestWindDir;
+		chaForce += NorthWindForce * NorthWindDir;
 
-
-		chaForce += m_gravity * m_chassis->getI().getMass();//重力加速度*底盘质量
-		m_chassis->setExternalForce(chaForce);//底盘调用其力和力矩
+		//std::cout << chaForce[0] << chaForce[1] << chaForce[2]<<std::endl;
+		
+		chaForce += m_gravity * m_chassis->getI().getMass();
+		
+		m_chassis->setExternalForce(chaForce);
 		m_chassis->setExternalTorque(chaTorque);
 	}
 

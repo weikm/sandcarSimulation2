@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <math.h>
 
-
 #define NSUM 25
 
 //#include <cooperative_groups.h>
@@ -27,11 +26,7 @@ extern texture<float4, 2, cudaReadModeElementType> texture_mu;//È»ºó°ÑÕâ¸öÒ²ÓÃÆð
 
 SSESandSolver::SSESandSolver()
 {
-    //m_CFLReduction = Reduction<float>::Create();
-	//ÕâÀï¼ÓÉÏ¸ømuÊý×é¸³Öµ
 
-
-	
 }
 
 SSESandSolver::~SSESandSolver()
@@ -41,13 +36,8 @@ SSESandSolver::~SSESandSolver()
 }
 
 
-
-
-
-//³õÊ¼»¯
 bool SSESandSolver::initialize()
 {
-	
 
     m_sandData.updateLandGridHeight();//SandGridÀàµ÷ÓÃ
     m_sandData.getSandGridInfo(m_SandInfo);
@@ -84,11 +74,9 @@ bool SSESandSolver::initialize()
 
 bool SSESandSolver::stepSimulation(float deltime)//stepº¯Êý£¬thisÖ¸Õëµ÷ÓÃÈý¸öº¯Êý
 {
-	
-
     do
     {
-        double subdt = this->getMaxTimeStep();
+        double subdt = this->getMaxTimeStep();//Ö÷ÒªÊÇ£¬Õâ¸öÊÇÕ¦ËãµÄ£¿
         subdt        = subdt < deltime ? subdt : deltime;
         deltime -= subdt;
         printf("  Cur time step:  %f\n", subdt);
@@ -161,12 +149,6 @@ __global__ void g_sandAdvection(float4* grid_next, int width, int height, float 
         }
         u_center.w = center.w;
 
-        //if (u_center.x > 0.21)
-        //{
-        //	printf("  Advection error:  %lf %lf %lf,  before:  %lf %lf %lf,   flux: %lf %lf %lf\n", u_center.x, u_center.y, u_center.z,
-        //		center.x, center.y, center.z, flux.x, flux.y, flux.z);
-        //}
-
         grid2Dwrite(grid_next, gridx, gridy, pitch, u_center);
     }
 }
@@ -184,9 +166,6 @@ void SSESandSolver::advection(float deltime)
     // cudaThreadSynchronize();
     cuSynchronize();
 
-    // bind texture
-    //SSEUtil::bindTexture2D(texture_grid, m_SandInfo.data, m_SandInfo.nx, m_SandInfo.ny, m_SandInfo.pitch);
-    //cuSynchronize();
 }
 
 /**
@@ -554,9 +533,6 @@ void SSESandSolver::updateVeclocity(float deltime)
     //cudaThreadSynchronize();
     cuSynchronize();//×¢ÊÍµô¿´¿´//ÕâÀï±¨´íÍùÍùÊÇÒòÎªÊý×é´óÐ¡²»Æ¥Åä
 
-    // bind texture
-    //SSEUtil::bindTexture2D(texture_grid, m_SandInfo.data, m_SandInfo.nx, m_SandInfo.ny, m_SandInfo.pitch);
-    //cuSynchronize();
 }
 
 __global__ void SSESand_updateMacStaticHeight(//¸üÐÂmac¾²Ì¬¸ß¶È£¬Õâ¸ömac¾ÝË®ÉúÊ¦¸çËµÊÇÒ»ÖÖ½»²æ´æ´¢Íø¸ñÊý¾ÝµÄ·½·¨£¬ÉÐÎ´¸ã¶®
@@ -593,28 +569,7 @@ __global__ void SSESand_updateMacStaticHeight(//¸üÐÂmac¾²Ì¬¸ß¶È£¬Õâ¸ömac¾ÝË®ÉúÊ¦
     statich               = 0 > statich ? 0 : statich;
     macStaticHeight(x, y) = statich;//×îºóÒªµÄ¾ÍÊÇÕâ¸östatich¾²Ì¬¸ß¶È
 
-    //double sandh = sandHeight(x, y);
-    //double flowh = sandh - staticHeight(x, y);
-
-    //Vector3d grad1;
-    //Vector3d pos = macStaticHeight.gridCenterPosition(x, y);
-    //macStaticHeight.gradient(pos[0], pos[2], grad1[0], grad1[2]);
-
-    //Vector3d grad2;
-    //pos = landHeight.gridCenterPosition(x, y);
-    //landHeight.gradient(pos[0], pos[2], grad2[0], grad2[2]);
-    //double theta = (grad1 + grad2).norm();
-    //double epsilon = gamma * flowh * (theta - mu);
-    //staticHeight(x, y) -= epsilon * dt;
-
-    //flowh = sandh - staticHeight(x, y);
-    //if (flowh < threshold)
-    //{
-    //	flowh = threshold > sandh ? sandh : threshold;
-    //	staticHeight(x, y) = sandh - flowh;
-    //}
-
-    //double epsilon = gamma *
+    
 }
 
 __global__ void SSESand_updateStaticHeight(//¸üÐÂ¾²Ì¬¸ß¶È
@@ -701,16 +656,7 @@ __global__ void g_getVelocityNorm(float* velocityNorm, int width, int height)//»
     }
 }
 
-//	__global__ void testfun23423(float a, float b)
-//{
-//	int tid = threadIdx.x + blockIdx.x * blockDim.x;
-//
-//	grid_group grid = this_grid();
-//	printf("%d:  %f\n", tid, a);
-//
-//	//grid.sync();
-//	printf("%d:  %f   %f\n", tid, b, b);
-//}
+
 
 float SSESandSolver::getMaxTimeStep()//»ñÈ¡×î´óÊ±¼ä²½£¬ÂÛÎÄ
 {
@@ -758,8 +704,6 @@ __global__ void SSESand_applyVelocityChange(
     int gi = lgi + minGi;
     int gj = lgj + minGj;
 
-    //SSEUtil::idx2Grid(gi, gj, tid, sandinfo.nx);
-
     float w_r = 0;
     if (SSEUtil::inRange(lgi + 1, lgj, sizeGi, sizeGj))
     {
@@ -797,21 +741,6 @@ __global__ void SSESand_applyVelocityChange(
     double dhv = sandinfo.griddl / 2.0 * (w_d - w_u);
     gp.y += dhv;
     gp.z += dhu;
-
-    //if (w_r != 0 || w_l != 0 || w_d != 0 || w_u != 0)
-    //{
-    //	printf("  Nono 0 vel:  %lf %lf %lf\n", w_r, w_l, w_d, w_u);
-    //}
-
-    //if (gridVel[tid][0] != 0 || gridVel[tid][2] != 0)
-    //{
-    //	printf("gridVel")
-    //}
-
-    //if (dhu != 0 || dhv != 0)
-    //{
-    //	printf("DHUV: %d %d,  %lf %lf %lf %lf\n",gi, gj, dhu, dhv, w_d, w_u);
-    //}
 
     grid2Dwrite(sandinfo.data, gi, gj, sandinfo.pitch, gp);
 }

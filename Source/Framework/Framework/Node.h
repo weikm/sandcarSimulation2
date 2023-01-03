@@ -327,10 +327,10 @@ public:
     {
         return true;
     }
-	//卧槽，advance和takeOneFrame都是node的函数呀！！！
+
     virtual void draw(){};
     virtual void advance(Real dt);
-    virtual void takeOneFrame(){};//这个去掉会异常
+    virtual void takeOneFrame(){};
     virtual void updateModules(){};
     virtual void updateTopology();
     virtual bool resetStatus()

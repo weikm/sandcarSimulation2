@@ -295,7 +295,7 @@ public:
     Real mu  = 1.0;
     Real rho = 1.0;
 
-    Real linDamping = 0.;//ÎÞË¥¼õ
+    Real linDamping = 0.;
     Real angDamping = 0.;
 
     Real            invMass;     // inverse mass.
