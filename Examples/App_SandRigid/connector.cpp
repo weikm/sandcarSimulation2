@@ -20,9 +20,11 @@
 #include "Dynamics\Sand\ParticleSandRigidInteraction.h"
 #include "Dynamics/Sand/SandVisualPointSampleModule.h"
 #include "IO/Image_IO/HeightFieldLoader.h"
-#include "sandRigidCommon.h"
+
 #include "GUI/GlutGUI/GLApp.h"
 
+
+#include "sandRigidCommon.h"
 #include "math.h"
 //目前bug：vector越界
 namespace VPE {
@@ -214,11 +216,11 @@ namespace VPE {
 			//a,b叉乘
 			Vec3 ab = { a.y*b.z - b.y*a.z ,a.z*b.x - b.z*a.x ,a.x*b.y - a.y*b.x };
 			//单位化
-			ab = { ab.x / sqrt(pow(ab.x, 2) + pow(ab.y, 2) + pow(ab.z, 2)) , ab.y / sqrt(pow(ab.x, 2) + pow(ab.y, 2) + pow(ab.z, 2))  , ab.z / sqrt(pow(ab.x, 2) + pow(ab.y, 2) + pow(ab.z, 2)) };
+			ab = { static_cast <float>(ab.x / sqrt(pow(ab.x, 2) + pow(ab.y, 2) + pow(ab.z, 2)) ), static_cast <float>(ab.y / sqrt(pow(ab.x, 2) + pow(ab.y, 2) + pow(ab.z, 2)) ) , static_cast <float>(ab.z / sqrt(pow(ab.x, 2) + pow(ab.y, 2) + pow(ab.z, 2)) )};
 			//ab叉乘010
 			Vec3 ab_010 = { -ab.z ,0 ,ab.x };
 			//单位化，得到轴法向量
-			ab_010 = { ab_010.x / sqrt(pow(ab_010.x, 2) + pow(ab_010.y, 2) + pow(ab_010.z, 2)) , ab_010.y / sqrt(pow(ab_010.x, 2) + pow(ab_010.y, 2) + pow(ab_010.z, 2))  , ab_010.z / sqrt(pow(ab_010.x, 2) + pow(ab_010.y, 2) + pow(ab_010.z, 2)) };
+			ab_010 = { static_cast <float>(ab_010.x / sqrt(pow(ab_010.x, 2) + pow(ab_010.y, 2) + pow(ab_010.z, 2)) ), static_cast <float>(ab_010.y / sqrt(pow(ab_010.x, 2) + pow(ab_010.y, 2) + pow(ab_010.z, 2)) ) , static_cast <float>(ab_010.z / sqrt(pow(ab_010.x, 2) + pow(ab_010.y, 2) + pow(ab_010.z, 2)) )};
 
 			double cos = ab.y * 1 / sqrt(pow(ab.x, 2) + pow(ab.y, 2) + pow(ab.z, 2));
 			double sin = sqrt(1 - pow(cos, 2));
@@ -255,11 +257,11 @@ namespace VPE {
 				//a,b叉乘
 				Vec3 ab = { a.y*b.z - b.y*a.z ,a.z*b.x - b.z*a.x ,a.x*b.y - a.y*b.x };
 				//单位化
-				ab = { ab.x / sqrt(pow(ab.x, 2) + pow(ab.y, 2) + pow(ab.z, 2)) , ab.y / sqrt(pow(ab.x, 2) + pow(ab.y, 2) + pow(ab.z, 2))  , ab.z / sqrt(pow(ab.x, 2) + pow(ab.y, 2) + pow(ab.z, 2)) };
+				ab = { static_cast <float>(ab.x / sqrt(pow(ab.x, 2) + pow(ab.y, 2) + pow(ab.z, 2))) , static_cast <float>(ab.y / sqrt(pow(ab.x, 2) + pow(ab.y, 2) + pow(ab.z, 2)) ) , static_cast <float>(ab.z / sqrt(pow(ab.x, 2) + pow(ab.y, 2) + pow(ab.z, 2))) };
 				//ab叉乘010
 				Vec3 ab_010 = { -ab.z ,0 ,ab.x };
 				//单位化，得到轴法向量
-				ab_010 = { ab_010.x / sqrt(pow(ab_010.x, 2) + pow(ab_010.y, 2) + pow(ab_010.z, 2)) , ab_010.y / sqrt(pow(ab_010.x, 2) + pow(ab_010.y, 2) + pow(ab_010.z, 2))  , ab_010.z / sqrt(pow(ab_010.x, 2) + pow(ab_010.y, 2) + pow(ab_010.z, 2)) };
+				ab_010 = { static_cast <float>(ab_010.x / sqrt(pow(ab_010.x, 2) + pow(ab_010.y, 2) + pow(ab_010.z, 2)) ), static_cast <float>(ab_010.y / sqrt(pow(ab_010.x, 2) + pow(ab_010.y, 2) + pow(ab_010.z, 2))  ), static_cast <float>(ab_010.z / sqrt(pow(ab_010.x, 2) + pow(ab_010.y, 2) + pow(ab_010.z, 2))) };
 
 				double cos = ab.y * 1 / sqrt(pow(ab.x, 2) + pow(ab.y, 2) + pow(ab.z, 2));
 				double sin = sqrt(1 - pow(cos, 2));
