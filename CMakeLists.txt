@@ -66,10 +66,10 @@ else()
     message(FATAL_ERROR "Could not set install folders for this platform!")
 endif()
 
-option(PhysIKA_Python_Binding "Enable python binding with pybind11" ON)
-if(PhysIKA_Python_Binding)
-  add_subdirectory(Python)
-endif()
+#option(PhysIKA_Python_Binding "Enable python binding with pybind11" ON)
+#if(PhysIKA_Python_Binding)
+#  add_subdirectory(Python)
+#endif()
 
 
 option(PhysIKA_Tests "Enable building PhysIKA tests" ON)
